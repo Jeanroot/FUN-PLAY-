@@ -18,47 +18,65 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build Webview APK
-        run: |
-          mkdir -p myapp/app/src/main/java/com/funplay/app
-          mkdir -p myapp/app/src/main/res/values
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
 
-          cat << 'EOF' > myapp/settings.gradle
+      - name: Create Complete Android Project
+        run: |
+          rm -rf app build.gradle settings.gradle gradle.properties
+          mkdir -p app/src/main/java/com/funplay/app
+          mkdir -p app/src/main/res/values
+
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.nonTransitiveRClass=true
+          EOF
+
+          cat << 'EOF' > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           rootProject.name = "FunPlay"
           include ':app'
           EOF
 
-          cat << 'EOF' > myapp/build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:7.4.2'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+          cat << 'EOF' > build.gradle
+          plugins {
+              id 'com.android.application' version '8.1.1' apply false
           }
           EOF
 
-          cat << 'EOF' > myapp/app/build.gradle
+          cat << 'EOF' > app/build.gradle
           plugins {
               id 'com.android.application'
           }
           android {
               namespace 'com.funplay.app'
-              compileSdk 33
+              compileSdk 34
               defaultConfig {
                   applicationId "com.funplay.app"
                   minSdk 21
-                  targetSdk 33
+                  targetSdk 34
                   versionCode 1
                   versionName "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
               }
           }
           dependencies {
@@ -66,16 +84,21 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > myapp/app/src/main/AndroidManifest.xml
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
               <application
+                  android:allowBackup="true"
                   android:label="FUN PLAY"
-                  android:usesCleartextTraffic="true">
+                  android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+                  android:usesCleartextTraffic="true"
+                  android:supportsRtl="true">
                   <activity
                       android:name=".MainActivity"
-                      android:exported="true">
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -85,34 +108,49 @@ jobs:
           </manifest>
           EOF
 
-          cat << 'EOF' > myapp/app/src/main/java/com/funplay/app/MainActivity.java
+          cat << 'EOF' > app/src/main/java/com/funplay/app/MainActivity.java
           package com.funplay.app;
 
           import android.os.Bundle;
+          import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import androidx.appcompat.app.AppCompatActivity;
 
           public class MainActivity extends AppCompatActivity {
+              private WebView webView;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  WebView webView = new WebView(this);
-                  webView.getSettings().setJavaScriptEnabled(true);
-                  webView.getSettings().setDomStorageEnabled(true);
+                  webView = new WebView(this);
+                  setContentView(webView);
+                  
+                  WebSettings webSettings = webView.getSettings();
+                  webSettings.setJavaScriptEnabled(true);
+                  webSettings.setDomStorageEnabled(true);
+                  webSettings.setMediaPlaybackRequiresUserGesture(false);
+                  
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("https://topplay.brtvs.top");
-                  setContentView(webView);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
               }
           }
           EOF
 
-          cd myapp
-          gradle wrapper
-          ./gradlew assembleDebug
+      - name: Build Debug APK
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: myapp/app/build/outputs/apk/debug/app-debug.apk
+          name: FunPlay-Debug-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
