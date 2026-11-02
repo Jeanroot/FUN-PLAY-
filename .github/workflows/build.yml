@@ -18,25 +18,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create Complete Android Project
+      - name: Build Webview APK
         run: |
-          rm -rf app build.gradle settings.gradle
-          mkdir -p app/src/main/java/com/funplay/app
-          mkdir -p app/src/main/res/values
+          mkdir -p myapp/app/src/main/java/com/funplay/app
+          mkdir -p myapp/app/src/main/res/values
 
-          cat << 'EOF' > settings.gradle
+          cat << 'EOF' > myapp/settings.gradle
           rootProject.name = "FunPlay"
           include ':app'
           EOF
 
-          cat << 'EOF' > build.gradle
+          cat << 'EOF' > myapp/build.gradle
           buildscript {
               repositories {
                   google()
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.1'
+                  classpath 'com.android.tools.build:gradle:7.4.2'
               }
           }
           allprojects {
@@ -47,7 +46,7 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > app/build.gradle
+          cat << 'EOF' > myapp/app/build.gradle
           plugins {
               id 'com.android.application'
           }
@@ -61,26 +60,19 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           EOF
 
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          cat << 'EOF' > myapp/app/src/main/AndroidManifest.xml
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
               <application
-                  android:allowBackup="true"
                   android:label="FUN PLAY"
-                  android:usesCleartextTraffic="true"
-                  android:supportsRtl="true">
+                  android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
@@ -93,36 +85,29 @@ jobs:
           </manifest>
           EOF
 
-          cat << 'EOF' > app/src/main/java/com/funplay/app/MainActivity.java
+          cat << 'EOF' > myapp/app/src/main/java/com/funplay/app/MainActivity.java
           package com.funplay.app;
 
           import android.os.Bundle;
-          import android.webkit.WebSettings;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import androidx.appcompat.app.AppCompatActivity;
 
           public class MainActivity extends AppCompatActivity {
-              private WebView webView;
-
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  webView = new WebView(this);
-                  setContentView(webView);
-                  
-                  WebSettings webSettings = webView.getSettings();
-                  webSettings.setJavaScriptEnabled(true);
-                  webSettings.setDomStorageEnabled(true);
-                  
+                  WebView webView = new WebView(this);
+                  webView.getSettings().setJavaScriptEnabled(true);
+                  webView.getSettings().setDomStorageEnabled(true);
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("https://topplay.brtvs.top");
+                  setContentView(webView);
               }
           }
           EOF
 
-      - name: Build Debug APK
-        run: |
+          cd myapp
           gradle wrapper
           ./gradlew assembleDebug
 
@@ -130,4 +115,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: myapp/app/build/outputs/apk/debug/app-debug.apk
